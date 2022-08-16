@@ -296,6 +296,13 @@ class LayerNorm(Module):
     scale_init: Initializer for scale, by default, one.
     reduction_axes: Axes for computing normalization statistics.
     feature_axes: Feature axes for learned bias and scaling.
+    axis_name: the axis name used to combine batch statistics from multiple
+      devices. See `jax.pmap` for a description of axis names (default: None).
+    axis_index_groups: groups of axis indices within that named axis
+      representing subsets of devices to reduce over (default: None). For
+      example, `[[0, 1], [2, 3]]` would independently batch-normalize over
+      the examples on the first two and last two devices. See `jax.lax.psum`
+      for more details.
   """
   epsilon: float = 1e-6
   dtype: Optional[Dtype] = None
@@ -306,6 +313,8 @@ class LayerNorm(Module):
   scale_init: Callable[[PRNGKey, Shape, Dtype], Array] = initializers.ones
   reduction_axes: Axes = -1
   feature_axes: Axes = -1
+  axis_name: Optional[str] = None
+  axis_index_groups: Any = None
 
   @compact
   def __call__(self, x):
@@ -318,7 +327,8 @@ class LayerNorm(Module):
       Normalized inputs (the same shape as inputs).
     """
     # TODO(jheek) suport axis_name for model parallelism?
-    mean, var = _compute_stats(x, self.reduction_axes, self.dtype, None, None)
+    mean, var = _compute_stats(x, self.reduction_axes, self.dtype,
+                               self.axis_name, self.axis_index_groups)
 
     return _normalize(
         self, x, mean, var, self.reduction_axes, self.feature_axes,
