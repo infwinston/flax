@@ -873,7 +873,7 @@ def vjp(
       @nn.compact
       def __call__(self, x):
         y, bwd = nn.vjp(lambda mdl, x: mdl(x), LearnScale(), x)
-        params_grad, x_grad = bwd(jnp.ones(y.shape))
+        params_grad, (x_grad,) = bwd(jnp.ones(y.shape))
         return y, params_grad, x_grad
 
   Args:
@@ -1178,7 +1178,7 @@ def switch(
           nn.Sequential([nn.Dense(11), nn.Dense(5)]),
           nn.Dense(5),
         ]
-      
+
       @nn.compact
       def __call__(self, x, index):
         def head_fn(i):
@@ -1189,7 +1189,7 @@ def switch(
         if self.is_mutable_collection('params'):
           for branch in branches:
             _ = branch(self, x)
-          
+
         return nn.switch(index, branches, self, x)
 
   Args:
@@ -1257,7 +1257,7 @@ def custom_vjp(fn: Callable[..., Any],
           return nn.vjp(f, mdl, x)
 
         def bwd(vjp_fn, y_t):
-          input_t, params_t = vjp_fn(y_t)
+          params_t, input_t = vjp_fn(y_t)
           params_t = jax.tree_util.tree_map(jnp.sign, params_t)
           return input_t, params_t
 

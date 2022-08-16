@@ -336,9 +336,11 @@ InOutAxis = Union[Axis, In[Axis], Out[Axis]]
 
 
 def _bwd_wrapper(treedef, bwd_fn, tangent):
-  vars_grad, inputs_grad = bwd_fn(tangent)
+  grads = bwd_fn(tangent)
+  vars_grad = grads[0]
+  inputs_grad = grads[1:]
   vars_grad = treedef.unflatten(vars_grad)
-  return inputs_grad, vars_grad
+  return vars_grad, inputs_grad
 
 
 def vjp(
@@ -367,7 +369,7 @@ def vjp(
       return p * x
     def f(scope, x):
       y, bwd = lift.vjp(learn_scale, scope, x)
-      params_grad, x_grad = bwd(jnp.ones(y.shape))
+      params_grad, (x_grad,) = bwd(jnp.ones(y.shape))
       return y, params_grad, x_grad
 
   Args:
@@ -1065,7 +1067,7 @@ def custom_vjp(fn: Callable[..., Any],
       return y, vjp_fn
 
     def bwd(features, vjp_fn, y_t):
-      input_t, params_t = vjp_fn(y_t)
+      params_t, input_t = vjp_fn(y_t)
       params_t = jax.tree_util.tree_map(jnp.sign, params_t)
       return input_t, params_t
 
@@ -1116,10 +1118,10 @@ def custom_vjp(fn: Callable[..., Any],
       nondiff_args = args[:-2]
       res, g = args[-2:]  # pylint: disable=unbalanced-tuple-unpacking
       g_y, _ = g
-      input_t, var_t = backward_fn(*nondiff_args, res, g_y)
+      inputs_t, var_t = backward_fn(*nondiff_args, res, g_y)
       assert scopes_treedef is not None, 'backward called before forward?!'
       var_t = tuple(scopes_treedef.flatten_up_to(var_t))
-      return var_t, input_t
+      return (var_t,) + tuple(inputs_t)
 
     f.defvjp(f_fwd, f_bwd)
 

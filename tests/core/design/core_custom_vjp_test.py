@@ -39,7 +39,7 @@ def mlp_custom_grad(scope: Scope, x: Array,
   def bwd(features, res, y_t):
     del features
     vjp_fn = res
-    input_t, params_t = vjp_fn(y_t)
+    params_t, input_t = vjp_fn(y_t)
     params_t = jax.tree_util.tree_map(jnp.sign, params_t)
     return input_t, params_t
 
